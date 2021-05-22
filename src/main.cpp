@@ -22,17 +22,17 @@
 #ifdef LUA_SCRIPTS
 #include "./apps/main/luaapp.h"
 #endif
+#include "./apps/games/snake_game.h"
 #include "./apps/main/stopwatch.h"
 #include "./apps/main/switcher.h"
-#include "./apps/main/watchface.h"
-#include "./apps/main/watchface_binary.h"
-#include "./apps/main/watchface_digital.h"
 #include "./apps/tools/button_test.h"
 #include "./apps/tools/config_mgmt.h"
 #include "./apps/tools/print_debug.h"
-#include "./apps/tools/snake_game.h"
 #include "./apps/tools/time_config.h"
 #include "./apps/tools/water_level.h"
+#include "./apps/watchfaces/watchface.h"
+#include "./apps/watchfaces/watchface_binary.h"
+#include "./apps/watchfaces/watchface_digital.h"
 #include "./overlays/overlays.h"
 #if defined(GPS_EDITION)
 #include "./apps/main/map.h"
@@ -103,6 +103,24 @@ void core2Worker(void *pvParameters) {
 
 short displayTimeout = 0;
 void setup() {
+  watchFaceSwitcher->registerApp(new OswAppWatchface());
+  watchFaceSwitcher->registerApp(new OswAppWatchfaceDigital());
+  watchFaceSwitcher->registerApp(new OswAppWatchfaceBinary());
+  mainAppSwitcher->registerApp(watchFaceSwitcher);
+#ifdef GPS_EDITION
+  mainAppSwitcher->registerApp(new OswAppMap());
+#endif
+  // mainAppSwitcher->registerApp(new OswAppHelloWorld());
+  // mainAppSwitcher->registerApp(new OswAppPrintDebug());
+  mainAppSwitcher->registerApp(new OswAppSnakeGame());
+  mainAppSwitcher->registerApp(new OswAppStopWatch());
+  mainAppSwitcher->registerApp(new OswAppWaterLevel());
+  mainAppSwitcher->registerApp(new OswAppTimeConfig());
+  mainAppSwitcher->registerApp(new OswAppConfigMgmt());
+#ifdef LUA_SCRIPTS
+  mainAppSwitcher->registerApp(new OswLuaApp("stopwatch.lua"));
+#endif
+
   Serial.begin(115200);
   srand(time(nullptr));
 
@@ -144,7 +162,13 @@ void loop() {
 
   // limit to 30 fps and handle display flushing
   if (millis() - lastFlush > 1000 / 30 && hal->isRequestFlush()) {
-    drawOverlays(hal);
+    // only draw overlays if enabled
+    if (OswConfigAllKeys::settingDisplayOverlays.get()) {
+      // only draw on first face if enabled, or on all others
+      if ((mainAppIndex == 0 && OswConfigAllKeys::settingDisplayOverlaysOnWatchScreen.get()) || mainAppIndex != 0) {
+        drawOverlays(hal);
+      }
+    }
     hal->flushCanvas();
     lastFlush = millis();
   }
@@ -156,7 +180,7 @@ void loop() {
 #endif
     // mainAppSwitcher->registerApp(new OswAppHelloWorld());
     // mainAppSwitcher->registerApp(new OswAppPrintDebug());
-    // mainAppSwitcher->registerApp(new OswAppSnakeGame());
+    mainAppSwitcher->registerApp(new OswAppSnakeGame());
     mainAppSwitcher->registerApp(new OswAppStopWatch());
     mainAppSwitcher->registerApp(new OswAppWaterLevel());
     mainAppSwitcher->registerApp(new OswAppTimeConfig());
